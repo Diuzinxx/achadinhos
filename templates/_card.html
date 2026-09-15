@@ -1,0 +1,4 @@
+<article class="card"><a class="photo" href="{{url_for('product',product_id=product.id)}}">{% if product.featured %}<b class="badge">DESTAQUE</b>{% endif %}<img src="{{product.image_url}}" alt="{{product.name}}" loading="lazy"></a>
+<div class="card-body"><div class="meta"><span>{{product.category}}</span><span>{{product.store or 'Shopee'}}</span></div>
+<h3><a href="{{url_for('product',product_id=product.id)}}">{{product.name}}</a></h3>
+<div class="price">{% if product.old_price %}<del>{{product.old_price}}</del>{% endif %}<strong>{{product.price}}</strong><a href="{{url_for('product',product_id=product.id)}}">↗</a></div></div></article>

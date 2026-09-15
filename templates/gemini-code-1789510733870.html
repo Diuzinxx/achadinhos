@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ product['name'] }} - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-8 max-w-4xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Imagem do Produto -->
+        <div class="aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-100">
+            <img src="{{ product['image_url'] }}" alt="{{ product['name'] }}" class="w-full h-full object-cover" onerror="this.src='{{ placeholder_img }}'">
+        </div>
+
+        <!-- Informações -->
+        <div class="flex flex-col justify-between">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="bg-shopee/10 text-shopee text-xs font-bold px-2.5 py-1 rounded-md">{{ product['category'] }}</span>
+                    <span class="bg-gray-100 text-gray-600 text-xs font-bold px-2.5 py-1 rounded-md">{{ product['store'] }}</span>
+                </div>
+                
+                <h1 class="text-xl sm:text-2xl font-extrabold text-gray-900">{{ product['name'] }}</h1>
+                
+                <div class="mt-4 flex items-baseline gap-3">
+                    <span class="text-2xl sm:text-3xl font-black text-shopee">R$ {{ product['price'] }}</span>
+                    {% if product['old_price'] %}
+                        <span class="text-sm text-gray-400 line-through">R$ {{ product['old_price'] }}</span>
+                    {% endif %}
+                </div>
+
+                {% if product['description'] %}
+                    <div class="mt-6 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-4">
+                        <p class="font-semibold text-gray-700 mb-1">Detalhes do achadinho:</p>
+                        {{ product['description'] | safe }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mt-8">
+                <a href="{{ url_for('go', product_id=product['id']) }}" target="_blank" rel="nofollow noopener" class="w-full bg-shopee hover:bg-shopeeDark text-white text-base font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition shadow-lg shadow-shopee/20">
+                    <i class="fa-solid fa-cart-shopping"></i> Comprar na Shopee agora
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Produtos Relacionados -->
+{% if related %}
+    <div class="max-w-4xl mx-auto mt-12">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Você também pode gostar</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {% for r in related %}
+                <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex flex-col justify-between">
+                    <a href="{{ url_for('product', product_id=r['id']) }}">
+                        <img src="{{ r['image_url'] }}" class="aspect-square object-cover rounded-lg mb-2" onerror="this.src='{{ placeholder_img }}'">
+                        <h4 class="text-xs font-medium text-gray-800 line-clamp-2 hover:text-shopee">{{ r['name'] }}</h4>
+                    </a>
+                    <div class="mt-2">
+                        <span class="text-sm font-black text-gray-900">R$ {{ r['price'] }}</span>
+                        <a href="{{ url_for('go', product_id=r['id']) }}" target="_blank" class="mt-2 block w-full bg-shopee text-white text-center text-xs font-bold py-1.5 rounded-lg">Ver</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

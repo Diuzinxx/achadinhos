@@ -1,0 +1,2 @@
+{% extends "base.html" %}{% block title %}Painel — ACHADINHOS{% endblock %}{% block content %}
+<section class="auth"><form method="post"><small>ADMINISTRAÇÃO</small><h1>Entrar no painel</h1><p>Gerencie os produtos da sua vitrine.</p><label>Senha</label><input type="password" name="password" autofocus><button class="btn dark">Entrar</button><a href="{{url_for('index')}}">← Voltar</a></form></section>{% endblock %}

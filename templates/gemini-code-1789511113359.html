@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{% if product %}Editar Produto{% else %}Novo Produto{% endif %} - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
+    <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+        <h1 class="text-xl font-bold text-gray-900">{% if product %}Editar Produto{% else %}Adicionar Novo Achadinho{% endif %}</h1>
+        <a href="{{ url_for('admin') }}" class="text-xs font-semibold text-gray-500 hover:text-shopee"><i class="fa-solid fa-arrow-left"></i> Voltar ao painel</a>
+    </div>
+
+    <form method="POST" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nome do Produto *</label>
+            <input type="text" name="name" value="{{ product['name'] if product else '' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-shopee text-sm">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Preço Atual (Ex: 49,90) *</label>
+                <input type="text" name="price" value="{{ product['price'] if product else '' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-shopee text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Preço Antigo / Riscado (Opcional)</label>
+                <input type="text" name="old_price" value="{{ product['old_price'] if product else '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-shopee text-sm">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Categoria</label>
+                <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-shopee text-sm bg-white">
+                    {% for cat in categories %}
+                        {% if cat != 'Todos' %}
+                            <option value="{{ cat }}" {% if product and product['category'] == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Loja</label>
+                <input type="text" name="store" value="{{ product['store'] if product else 'Shopee' }}" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-shopee text-sm">
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link da Imagem (URL) *</label>
+            <input type="url" name="image_url" value="{{ product['image_url'] if product else '' }}" placeholder="https://..." required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-shopee text-sm">
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Link de Afiliado (URL) *</label>
+            <input type="url" name="affiliate_url" value="{{ product['affiliate_url'] if product else '' }}" placeholder="https://s.shopee.com.br/..." required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-shopee text-sm">
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Descrição / Detalhes (Opcional)</label>
+            <textarea name="description" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-shopee text-sm">{{ product['description'] if product else '' }}</textarea>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2">
+            <input type="checkbox" name="featured" id="featured" value="1" {% if product and product['featured'] %}checked{% endif %} class="w-4 h-4 text-shopee rounded border-gray-300 focus:ring-shopee">
+            <label for="featured" class="text-sm font-medium text-gray-700">Destacar este produto na página inicial</label>
+        </div>
+
+        <div class="pt-4">
+            <button type="submit" class="w-full bg-shopee hover:bg-shopeeDark text-white font-bold py-3 rounded-xl transition text-sm shadow-sm">
+                Salvar Produto
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
