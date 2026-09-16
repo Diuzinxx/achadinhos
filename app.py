@@ -141,6 +141,11 @@ def delete_product(product_id):
     conn=get_db(); conn.execute("DELETE FROM products WHERE id=?",(product_id,)); conn.commit(); conn.close()
     flash("Produto excluído.","success"); return redirect(url_for("admin"))
 
-if __name__=="__main__":
+if __name__ == "__main__":
     init_db()
-    app.run(debug=True)
+    if DEV_MODE:
+        app.run(debug=True)
+    else:
+        from waitress import serve
+        print(f"Servindo em http://0.0.0.0:8000 — {SITE_NAME}")
+        serve(app, host="0.0.0.0", port=8000, threads=8)
