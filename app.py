@@ -1,15 +1,22 @@
 import os
 import sqlite3
+import sys
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, flash, abort
 
+# ---------------------------------------------------------------- config ---
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-em-producao")
 DATABASE = os.environ.get("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "products.db"))
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+SITE_NAME = os.environ.get("SITE_NAME", "ACHADINHOS")
 
-CATEGORIES = ["Todos","Roupas","Calçados","Acessórios","Casa","Beleza","Academia","Presentes","Ofertas"]
+# Modo de desenvolvimento baseado em argumento na linha de comando (--dev)
+DEV_MODE = "--dev" in sys.argv
 
+CATEGORIES = ["Todos", "Roupas", "Calçados", "Acessórios", "Casa", "Beleza", "Academia", "Presentes", "Ofertas"]
+
+# --------------------------------------------------------------- database ---
 def get_db():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
@@ -27,8 +34,10 @@ def init_db():
         conn.execute("ALTER TABLE products ADD COLUMN store TEXT DEFAULT 'Shopee'")
     if "clicks" not in cols:
         conn.execute("ALTER TABLE products ADD COLUMN clicks INTEGER DEFAULT 0")
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
 
+# --------------------------------------------------------------- security ---
 def admin_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -38,23 +47,26 @@ def admin_required(view):
     return wrapped
 
 @app.context_processor
-def globals():
-    return {"categories": CATEGORIES}
+def globals_ctx():
+    return {"categories": CATEGORIES, "site_name": SITE_NAME}
 
+# ------------------------------------------------------------------ views ---
 @app.route("/")
 def index():
-    q = request.args.get("q","").strip()
-    category = request.args.get("categoria","Todos").strip()
+    q = request.args.get("q", "").strip()
+    category = request.args.get("categoria", "Todos").strip()
     conn = get_db()
     sql = "SELECT * FROM products WHERE 1=1"
     params = []
     if q:
         sql += " AND (name LIKE ? OR description LIKE ? OR category LIKE ? OR store LIKE ?)"
-        x=f"%{q}%"; params += [x,x,x,x]
+        x = f"%{q}%"
+        params += [x, x, x, x]
     if category != "Todos":
-        sql += " AND category=?"; params.append(category)
+        sql += " AND category=?"
+        params.append(category)
     sql += " ORDER BY featured DESC, created_at DESC"
-    products = conn.execute(sql,params).fetchall()
+    products = conn.execute(sql, params).fetchall()
     featured = conn.execute("SELECT * FROM products WHERE featured=1 ORDER BY created_at DESC LIMIT 8").fetchall()
     most_clicked = conn.execute("SELECT * FROM products ORDER BY clicks DESC, created_at DESC LIMIT 8").fetchall()
     conn.close()
@@ -62,90 +74,126 @@ def index():
 
 @app.route("/produto/<int:product_id>")
 def product(product_id):
-    conn=get_db()
-    item=conn.execute("SELECT * FROM products WHERE id=?",(product_id,)).fetchone()
-    if not item: conn.close(); abort(404)
-    related=conn.execute("SELECT * FROM products WHERE category=? AND id!=? ORDER BY featured DESC, created_at DESC LIMIT 4",(item["category"],product_id)).fetchall()
+    conn = get_db()
+    item = conn.execute("SELECT * FROM products WHERE id=?", (product_id,)).fetchone()
+    if not item:
+        conn.close()
+        abort(404)
+    related = conn.execute("SELECT * FROM products WHERE category=? AND id!=? ORDER BY featured DESC, created_at DESC LIMIT 4", (item["category"], product_id)).fetchall()
     conn.close()
-    return render_template("product.html",product=item,related=related)
+    return render_template("product.html", product=item, related=related)
 
 @app.route("/go/<int:product_id>")
 def go(product_id):
-    conn=get_db(); item=conn.execute("SELECT affiliate_url FROM products WHERE id=?",(product_id,)).fetchone()
-    if not item: conn.close(); abort(404)
-    conn.execute("UPDATE products SET clicks=COALESCE(clicks,0)+1 WHERE id=?",(product_id,))
-    conn.commit(); conn.close()
+    conn = get_db()
+    item = conn.execute("SELECT affiliate_url FROM products WHERE id=?", (product_id,)).fetchone()
+    if not item:
+        conn.close()
+        abort(404)
+    conn.execute("UPDATE products SET clicks=COALESCE(clicks,0)+1 WHERE id=?", (product_id,))
+    conn.commit()
+    conn.close()
     return redirect(item["affiliate_url"])
 
 @app.route("/sobre")
-def about(): return render_template("about.html")
+def about():
+    return render_template("about.html")
 
-@app.route("/admin/login",methods=["GET","POST"])
+# ------------------------------------------------------------------ admin ---
+@app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
-    if request.method=="POST":
-        if request.form.get("password")==ADMIN_PASSWORD:
-            session["admin"]=True; return redirect(url_for("admin"))
-        flash("Senha incorreta.","error")
+    if request.method == "POST":
+        if request.form.get("password") == ADMIN_PASSWORD:
+            session["admin"] = True
+            return redirect(url_for("admin"))
+        flash("Senha incorreta.", "error")
     return render_template("admin_login.html")
 
 @app.route("/admin/logout")
-def admin_logout(): session.clear(); return redirect(url_for("index"))
+def admin_logout():
+    session.clear()
+    return redirect(url_for("index"))
 
 @app.route("/admin")
 @admin_required
 def admin():
-    conn=get_db()
-    products=conn.execute("SELECT * FROM products ORDER BY created_at DESC").fetchall()
-    stats={
-        "products":conn.execute("SELECT COUNT(*) n FROM products").fetchone()["n"],
-        "featured":conn.execute("SELECT COUNT(*) n FROM products WHERE featured=1").fetchone()["n"],
-        "clicks":conn.execute("SELECT COALESCE(SUM(clicks),0) n FROM products").fetchone()["n"]}
+    conn = get_db()
+    products = conn.execute("SELECT * FROM products ORDER BY created_at DESC").fetchall()
+    stats = {
+        "products": conn.execute("SELECT COUNT(*) n FROM products").fetchone()["n"],
+        "featured": conn.execute("SELECT COUNT(*) n FROM products WHERE featured=1").fetchone()["n"],
+        "clicks": conn.execute("SELECT COALESCE(SUM(clicks),0) n FROM products").fetchone()["n"]
+    }
     conn.close()
-    return render_template("admin.html",products=products,stats=stats)
+    return render_template("admin.html", products=products, stats=stats)
 
 def form_data():
-    f=request.form
-    return dict(name=f.get("name","").strip(),price=f.get("price","").strip(),old_price=f.get("old_price","").strip(),
-        category=f.get("category","Ofertas"),image_url=f.get("image_url","").strip(),affiliate_url=f.get("affiliate_url","").strip(),
-        description=f.get("description","").strip(),featured=1 if f.get("featured") else 0,store=f.get("store","Shopee").strip() or "Shopee")
+    f = request.form
+    return dict(
+        name=f.get("name", "").strip(),
+        price=f.get("price", "").strip(),
+        old_price=f.get("old_price", "").strip(),
+        category=f.get("category", "Ofertas"),
+        image_url=f.get("image_url", "").strip(),
+        affiliate_url=f.get("affiliate_url", "").strip(),
+        description=f.get("description", "").strip(),
+        featured=1 if f.get("featured") else 0,
+        store=f.get("store", "Shopee").strip() or "Shopee"
+    )
 
-@app.route("/admin/produto/novo",methods=["GET","POST"])
+@app.route("/admin/produto/novo", methods=["GET", "POST"])
 @admin_required
 def new_product():
-    if request.method=="POST":
-        d=form_data()
+    if request.method == "POST":
+        d = form_data()
         if not d["name"] or not d["price"] or not d["image_url"] or not d["affiliate_url"]:
-            flash("Preencha nome, preço, imagem e link de afiliado.","error")
-            return render_template("product_form.html",product=None)
-        conn=get_db()
+            flash("Preencha nome, preço, imagem e link de afiliado.", "error")
+            return render_template("product_form.html", product=None)
+        conn = get_db()
         conn.execute("""INSERT INTO products(name,price,old_price,category,image_url,affiliate_url,description,featured,store)
-                        VALUES(?,?,?,?,?,?,?,?,?)""",(d["name"],d["price"],d["old_price"],d["category"],d["image_url"],d["affiliate_url"],d["description"],d["featured"],d["store"]))
-        conn.commit(); conn.close(); flash("Produto adicionado!","success"); return redirect(url_for("admin"))
-    return render_template("product_form.html",product=None)
+                        VALUES(?,?,?,?,?,?,?,?,?)""", (d["name"], d["price"], d["old_price"], d["category"], d["image_url"], d["affiliate_url"], d["description"], d["featured"], d["store"]))
+        conn.commit()
+        conn.close()
+        flash("Produto adicionado!", "success")
+        return redirect(url_for("admin"))
+    return render_template("product_form.html", product=None)
 
-@app.route("/admin/produto/<int:product_id>/editar",methods=["GET","POST"])
+@app.route("/admin/produto/<int:product_id>/editar", methods=["GET", "POST"])
 @admin_required
 def edit_product(product_id):
-    conn=get_db(); item=conn.execute("SELECT * FROM products WHERE id=?",(product_id,)).fetchone()
-    if not item: conn.close(); abort(404)
-    if request.method=="POST":
-        d=form_data()
+    conn = get_db()
+    item = conn.execute("SELECT * FROM products WHERE id=?", (product_id,)).fetchone()
+    if not item:
+        conn.close()
+        abort(404)
+    if request.method == "POST":
+        d = form_data()
         conn.execute("""UPDATE products SET name=?,price=?,old_price=?,category=?,image_url=?,affiliate_url=?,description=?,featured=?,store=? WHERE id=?""",
-                     (d["name"],d["price"],d["old_price"],d["category"],d["image_url"],d["affiliate_url"],d["description"],d["featured"],d["store"],product_id))
-        conn.commit(); conn.close(); flash("Produto atualizado!","success"); return redirect(url_for("admin"))
-    conn.close(); return render_template("product_form.html",product=item)
+                     (d["name"], d["price"], d["old_price"], d["category"], d["image_url"], d["affiliate_url"], d["description"], d["featured"], d["store"], product_id))
+        conn.commit()
+        conn.close()
+        flash("Produto atualizado!", "success")
+        return redirect(url_for("admin"))
+    conn.close()
+    return render_template("product_form.html", product=item)
 
-@app.route("/admin/produto/<int:product_id>/excluir",methods=["POST"])
+@app.route("/admin/produto/<int:product_id>/excluir", methods=["POST"])
 @admin_required
 def delete_product(product_id):
-    conn=get_db(); conn.execute("DELETE FROM products WHERE id=?",(product_id,)); conn.commit(); conn.close()
-    flash("Produto excluído.","success"); return redirect(url_for("admin"))
+    conn = get_db()
+    conn.execute("DELETE FROM products WHERE id=?", (product_id,))
+    conn.commit()
+    conn.close()
+    flash("Produto excluído.", "success")
+    return redirect(url_for("admin"))
 
+# ----------------------------------------------------------------- startup ---
 if __name__ == "__main__":
     init_db()
     if DEV_MODE:
         app.run(debug=True)
     else:
         from waitress import serve
-        print(f"Servindo em http://0.0.0.0:8000 — {SITE_NAME}")
-        serve(app, host="0.0.0.0", port=8000, threads=8)
+        port = int(os.environ.get("PORT", 8000))
+        print(f"Servindo em http://0.0.0.0:{port} — {SITE_NAME}")
+        serve(app, host="0.0.0.0", port=port, threads=8)
