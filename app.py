@@ -197,3 +197,4 @@ if __name__ == "__main__":
         from waitress import serve
         port = int(os.environ.get("PORT", 8000))
         print(f"Servindo em http://0.0.0.0:{port} — {SITE_NAME}")
+        serve(app, host="0.0.0.0", port=port, threads=8)
